@@ -1,5 +1,9 @@
 const { GraphQLServer } = require('graphql-yoga')
 const { prisma } = require('./generated/prisma-client')
+const Query = require('./resolvers/Query')
+const Mutation = require('./resolvers/Mutation')
+const User = require('./resolvers/User')
+const Link = require('./resolvers/Link')
 
 // add a link to the database
 // async function main() {
@@ -20,79 +24,25 @@ const { prisma } = require('./generated/prisma-client')
 
 //actual implementation of the GraphQL schema
 const resolvers = {
-  Query: {
-    info: () => `This is the API of a Hackernews Clone`,
-    feed: (root, args, context, info) => {
-      return context.prisma.links()
-    },
-    getById: (root, args, context, info) => {
-     	return context.prisma.link({id: args.id})
-    }
-  },
-  Mutation: {
-    post: (root, args, context) => {
-      return context.prisma.createLink({
-        url: args.url,
-        description: args.description,
-      })
-    },
-    // update: (root, args, context) => {
-    // 	return context.prisma.updateLink({url: args.url, description: args.description}, {id: args.id})
-    // },
-    delete: (root, args, context) => {
-    	return context.prisma.deleteLink({id: args.id})
-    }
-  },
+  Query,
+  Mutation,
+  User,
+  Link
 }
-
-
-// const resolvers = {
-//   Query: {
-//     info: () => `This is the API of a Hackernews Clone`,    
-//     feed: () => links,
-//     getById: (parent, args) => {
-//     	return links.find(function(item){
-//     		return item.id === args.id
-//     	})
-//     }
-//   },
-//   Mutation: {    
-//     post: (parent, args) => {
-//        const link = {
-//         id: `link-${idCount++}`,
-//         description: args.description,
-//         url: args.url,
-//       }
-//       links.push(link)
-//       return link
-//     },
-//     update: (parent, args) => {
-//         let updated = links.find(function(item){
-//     		return item.id === args.id
-//     	})
-
-//     	updated.url = args.url
-//     	updated.description = args.description
-
-//     	return updated
-//     },
-//     delete: (parent, args) => {
-//         let itemToDelete = links.find(function(item){
-//     		return item.id === args.id
-//     	})
-
-//     	var index = links.indexOf(itemToDelete);
-// 		if (index !== -1) links.splice(index, 1);
-//     },
-//   },  
-// }
 
 
 // the schema and resolvers are bundled and passed to the GraphQLServer
 const server = new GraphQLServer({
   typeDefs: './src/schema.graphql',
   resolvers,
-  context: { prisma },
+  // creating the context as a function which returns the context
+  //the advantage of this approach is that you can attach the HTTP request that carries the incoming GraphQL query (or mutation) to the context
+  context: request => {
+    return {
+      ...request, //spread over the request object and get all its properties, then overwrite the existing properties with the prisma we're passing
+      prisma,
+    }
+  }
 })
 
 server.start(() => console.log(`Server is running on http://localhost:4000`))
