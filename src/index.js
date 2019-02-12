@@ -1,67 +1,98 @@
 const { GraphQLServer } = require('graphql-yoga')
+const { prisma } = require('./generated/prisma-client')
 
-//used to store the links at runtime
-let links = [{
-  id: 'link-0',
-  url: 'www.howtographql.com',
-  description: 'Fullstack tutorial for GraphQL'
-}]
+// add a link to the database
+// async function main() {
+//   // Create a new link
+//   const newLink = await prisma.createLink({ 
+//     url: 'www.prisma.io',
+//     description: 'Prisma replaces traditional ORMs',
+//   })
+//   console.log(`Created new link: ${newLink.url} (ID: ${newLink.id})`)
 
-let idCount = links.length
+//   // Read all links from the database and print them to the console
+//   const allLinks = await prisma.links()
+//   console.log(allLinks)
+// }
 
-// 2
+// main().catch(e => console.error(e))
+
+
 //actual implementation of the GraphQL schema
 const resolvers = {
   Query: {
-    info: () => `This is the API of a Hackernews Clone`,    
-    feed: () => links,
-    getById: (parent, args) => {
-    	return links.find(function(item){
-    		return item.id === args.id
-    	})
+    info: () => `This is the API of a Hackernews Clone`,
+    feed: (root, args, context, info) => {
+      return context.prisma.links()
+    },
+    getById: (root, args, context, info) => {
+     	return context.prisma.link({id: args.id})
     }
   },
-  Mutation: {    
-    post: (parent, args) => {
-       const link = {
-        id: `link-${idCount++}`,
-        description: args.description,
+  Mutation: {
+    post: (root, args, context) => {
+      return context.prisma.createLink({
         url: args.url,
-      }
-      links.push(link)
-      return link
+        description: args.description,
+      })
     },
-    update: (parent, args) => {
-        let updated = links.find(function(item){
-    		return item.id === args.id
-    	})
-
-    	updated.url = args.url
-    	updated.description = args.description
-
-    	return updated
-    },
-    delete: (parent, args) => {
-        let itemToDelete = links.find(function(item){
-    		return item.id === args.id
-    	})
-
-    	var index = links.indexOf(itemToDelete);
-		if (index !== -1) links.splice(index, 1);
-    },
+    // update: (root, args, context) => {
+    // 	return context.prisma.updateLink({url: args.url, description: args.description}, {id: args.id})
+    // },
+    delete: (root, args, context) => {
+    	return context.prisma.deleteLink({id: args.id})
+    }
   },
-  // Link: {
-  //   id: (parent) => parent.id, //argument, commonly called parent (or sometimes root) is the result of the previous resolver execution level
-  //   description: (parent) => parent.description,
-  //   url: (parent) => parent.url,
-  // } 
 }
 
-// 3
+
+// const resolvers = {
+//   Query: {
+//     info: () => `This is the API of a Hackernews Clone`,    
+//     feed: () => links,
+//     getById: (parent, args) => {
+//     	return links.find(function(item){
+//     		return item.id === args.id
+//     	})
+//     }
+//   },
+//   Mutation: {    
+//     post: (parent, args) => {
+//        const link = {
+//         id: `link-${idCount++}`,
+//         description: args.description,
+//         url: args.url,
+//       }
+//       links.push(link)
+//       return link
+//     },
+//     update: (parent, args) => {
+//         let updated = links.find(function(item){
+//     		return item.id === args.id
+//     	})
+
+//     	updated.url = args.url
+//     	updated.description = args.description
+
+//     	return updated
+//     },
+//     delete: (parent, args) => {
+//         let itemToDelete = links.find(function(item){
+//     		return item.id === args.id
+//     	})
+
+//     	var index = links.indexOf(itemToDelete);
+// 		if (index !== -1) links.splice(index, 1);
+//     },
+//   },  
+// }
+
+
 // the schema and resolvers are bundled and passed to the GraphQLServer
 const server = new GraphQLServer({
   typeDefs: './src/schema.graphql',
   resolvers,
+  context: { prisma },
 })
 
 server.start(() => console.log(`Server is running on http://localhost:4000`))
