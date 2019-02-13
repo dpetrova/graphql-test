@@ -17,6 +17,7 @@ async function signup(parent, args, context, info) {
   }
 }
 
+
 async function login(parent, args, context, info) {
   //using the prisma client instance to retrieve the existing User record by the email address  
   const user = await context.prisma.user({ email: args.email })
@@ -37,6 +38,7 @@ async function login(parent, args, context, info) {
   }
 }
 
+
 function post(parent, args, context, info) {
   const userId = getUserId(context)
   return context.prisma.createLink({
@@ -46,12 +48,35 @@ function post(parent, args, context, info) {
   })
 }
 
+
 function update(parent, args, context, info){
   return context.prisma.updateLink({url: args.url, description: args.description}, {id: args.id})
 }
 
+
 function deleteLink(parent, args, context, info){
   return context.prisma.deleteLink({id: args.id})
+}
+
+
+async function vote(parent, args, context, info) { 
+  //validate the incoming JWT with the getUserId helper function 
+  const userId = getUserId(context)
+  //$exists function takes a where filter object that allows to specify certain conditions about elements of that type
+  //only if the condition applies to at least one element in the database, the $exists function returns true
+  //in this case, you’re using it to verify that the requesting User has not yet voted for the Link that’s identified by args.linkId
+  const linkExists = await context.prisma.$exists.vote({
+    user: { id: userId },
+    link: { id: args.linkId },
+  })
+  if (linkExists) {
+    throw new Error(`Already voted for link: ${args.linkId}`)
+  }
+
+  return context.prisma.createVote({
+    user: { connect: { id: userId } },
+    link: { connect: { id: args.linkId } },
+  })
 }
 
 module.exports = {
@@ -59,5 +84,6 @@ module.exports = {
   login,
   post,
   update,
-  deleteLink
+  deleteLink,
+  vote
 }
